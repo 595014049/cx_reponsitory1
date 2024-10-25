@@ -13,12 +13,15 @@
     <script>  
         if (annyang) {  
             // 开启调试模式  
+			var text="";
             annyang.debug();  
-
+			
             // 捕捉结果并实时更新到页面  
             annyang.addCallback('result', function(phrases) {  
-                console.log('识别结果：', phrases);  
-                document.getElementById('resultDisplay').innerText = phrases[0];  
+                console.log('识别结果：', phrases); 
+				if(phrases[0]!="")		
+					text+=phrases[0]+"\n"; 
+                document.getElementById('resultDisplay').innerText =  text
             });  
 
             // 开始监听  
