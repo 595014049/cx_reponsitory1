@@ -1,1 +1,36 @@
 
+<!DOCTYPE html>  
+<html lang="en">  
+<head>  
+    <meta charset="UTF-8">  
+    <title>Annyang Speech Recognition</title>  
+</head>  
+<body>  
+    <h1>语音转文字</h1>  
+    <p>说话的内容会显示在下面：</p>  
+    <div id="resultDisplay" style="border: 1px solid #ccc; padding: 10px; min-height: 100px;"></div>  
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/annyang/2.6.1/annyang.min.js"></script>  
+    <script>  
+        if (annyang) {  
+            // 开启调试模式  
+			var text="";
+            annyang.debug();  
+			
+            // 捕捉结果并实时更新到页面  
+            annyang.addCallback('result', function(phrases) {  
+                console.log('识别结果：', phrases); 
+				if(phrases[0]!="")		
+					text+=phrases[0]+"\n"; 
+                document.getElementById('resultDisplay').innerText =  text
+            });  
+
+            // 开始监听  
+			annyang.setLanguage('zh-CN');
+            annyang.start({ autoRestart: true, continuous: true });  
+        } else {  
+            console.log("Annyang 不支持当前浏览器");  
+        }  
+    </script>  
+</body>  
+</html>
