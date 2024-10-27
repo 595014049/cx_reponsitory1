@@ -1,29 +1,191 @@
-
 <!DOCTYPE html>  
 <html lang="en">  
 <head>  
     <meta charset="UTF-8">  
     <title>Annyang Speech Recognition</title>  
+	<style>  
+        .container {  
+            display: grid;  
+            grid-template-columns: 1fr 1fr 1fr; /* 1:1:1 比例 */  
+            gap: 10px; /* 各个box之间的间隙 */  
+        }  
+        .box1 {  
+            background-color: lightblue;  
+            padding: 10px;  
+        }  
+        .box2 {  
+            background-color: lightgreen;  
+            padding: 10px;  
+        }  
+        .box3 {  
+            background-color: lightcoral;  
+            padding: 10px;  
+        }.description {  
+    white-space: pre-line; 
+        }.collapsible-content {  
+            background-color: #f1f1f1;  
+            border: 0px solid #ccc;  
+            overflow: hidden;  
+            transition: max-height 0.5s ease-out;  
+            max-height: 0; /* Start collapsed */  
+        }
+		
+    </style>  
 </head>  
 <body>  
     <h1>语音转文字</h1>  
-    <p>说话的内容会显示在下面：</p>  
-    <div id="resultDisplay" style="border: 1px solid #ccc; padding: 10px; min-height: 100px;"></div>  
-
+    <p>说话的内容会显示在下面：</p>
+	<div class="container"> 
+    <div id="resultDisplay1" style="border: 1px solid #ccc; padding: 10px; min-height: 1000px;"contenteditable="true"></div>  
+	<div id="data-container" style="border: 1px solid #ccc; padding: 10px; min-height: 1000px;"contenteditable="false"></div>  
+	<div id="resultDisplay3" style="border: 1px solid #ccc; padding: 10px; min-height: 1000px;"contenteditable="false"></div> 
+	</div>  
     <script src="https://cdnjs.cloudflare.com/ajax/libs/annyang/2.6.1/annyang.min.js"></script>  
-    <script>  
+    <script>
+		const owner = '595014049';  
+		const repo = 'cx_reponsitory1';  
+        var jsonData=''
+		
+		document.addEventListener('mouseup', function() {  
+            const selection = window.getSelection();  
+            const selectedText = selection.toString();  
+			if(selectedText==="")
+			{
+				return;
+			}
+            console.log("selectedText:"+selectedText)
+			const matchedValues=findKeysContaining(jsonData,selectedText) 
+			console.log("matchedValues:"+matchedValues)
+			const container3=document.getElementById('resultDisplay3')
+			container3.innerHTML = ''
+			displayData(matchedValues,container3)
+        });
+		
+		function displayData(data, container) {
+			console.log(data)
+            data.forEach(item => {  
+                // Create a title element  
+                const titleElement = document.createElement('h2');  
+                titleElement.textContent = item.name;
+                container.appendChild(titleElement);  
+
+
+				
+				titleElement.addEventListener('click', () => {  
+                    if (contentElement.style.maxHeight) {  
+                        contentElement.style.maxHeight = null; // 折叠  
+                    } else {  
+                        contentElement.style.maxHeight = contentElement.scrollHeight + 'px'; // 展开  
+                    }  
+                });
+				
+				
+                // Create a content element  
+                const contentElement = document.createElement('div'); 
+                contentElement.className = 'collapsible-content';
+                contentElement.classList.add('description');  
+                contentElement.textContent = item.children;  
+                container.appendChild(contentElement);  
+            });  
+		}
+		
+		
+		function findKeysContaining(jsonObject, searchString) {  
+            const matchedKeys = [];  
+            // Helper function to perform recursive search  
+            function search(obj) {
+                obj.forEach(item => {
+					if (item.name.includes(searchString)) {  
+                            matchedKeys.push(item);  
+                        }
+				});
+            }  
+            search(jsonObject);  
+            return matchedKeys;  
+        }  
+		
+		
+		function toggleCollapse() {  
+            if (collapsibleDiv.style.maxHeight) {  
+                collapsibleDiv.style.maxHeight = null; // Collapse  
+            } else {  
+                collapsibleDiv.style.maxHeight = content.scrollHeight + "px"; // Expand  
+            }  
+        }
+		
+
+		
+		function csvToJson(csv) { 
+			const lines = csv.split('"\r\n'); 
+            const jsonArray = [];  
+            for (let i = 0; i < lines.length; i++) {
+				if(lines[i].trim().length === 0)
+				{
+					console.log('kong')
+					continue;
+				}
+                const row = lines[i].split(',');
+				const obj = {};
+				obj['name']=row[0];
+				obj['children']=row[1].substring(1, row[1].length)
+				
+				jsonArray.push(obj); 
+            }  
+            return jsonArray;  
+        }
+		
+		
+		
+		fetch(`https://api.github.com/repos/${owner}/${repo}/contents/面试.csv`)  
+		.then(response => response.json())  
+		.then(data => {  
+        // 解析 base64 编码的文件内容  
+            const binaryString = atob(data.content);  
+            const len = binaryString.length;  
+            const bytes = new Uint8Array(len);  
+            for (let i = 0; i < len; i++) {  
+                bytes[i] = binaryString.charCodeAt(i);  
+            }  
+            // Convert to UTF-8 string  
+            const markdownText = new TextDecoder('utf-8').decode(bytes);
+			console.log('111')
+			console.log(markdownText);
+            // Parse markdown using marked  
+			jsonData = csvToJson(markdownText);
+			console.log('443')
+            // Split and construct JSON based on headings and paragraphs  
+		    // 解析 JSON 字符串到对象  
+		    const container = document.getElementById('data-container');  
+			console.log('554');
+			console.log(jsonData)
+            displayData(jsonData, container);
+            // data 包含文件信息，比如 path, sha, size 等等  
+		})  
+		.catch(error => console.error('Error fetching file info:', error));
+	
+ 
+
         if (annyang) {  
             // 开启调试模式  
-			var text="";
+			var result_text="";
+			var soundstart_text="";
             annyang.debug();  
 			
             // 捕捉结果并实时更新到页面  
             annyang.addCallback('result', function(phrases) {  
-                console.log('识别结果：', phrases); 
+                console.log('result	识别结果：', phrases); 
 				if(phrases[0]!="")		
-					text+=phrases[0]+"\n"; 
-                document.getElementById('resultDisplay').innerText =  text
+					result_text+=""+phrases[0]+"\n"+"\n"; 
+                document.getElementById('resultDisplay1').innerText =  result_text
             });  
+			
+			// 捕捉结果并实时更新到页面  
+            //annyang.addCallback('soundstart', function(phrases) {  
+            //    console.log('soundstart识别结果：', phrases); 
+			//	if(phrases[0]!="")		
+			//		soundstart_text+=+"soundstart"+phrases[0]+"\n"; 
+            //    document.getElementById('resultDisplay').innerText =  soundstart_text
+            //});  
 
             // 开始监听  
 			annyang.setLanguage('zh-CN');
