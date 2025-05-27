@@ -1,0 +1,314 @@
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>绯红晚樱</title>
+	<script src="https://cdn.jsdelivr.net/npm/spark-md5@3.0.2/spark-md5.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .h-layout {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        input[type="text"] {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        #nickname {
+            width: 200px;
+        }
+        
+        #elo {
+            width: 120px;
+            background-color: #f0f0f0;
+            cursor: not-allowed;
+        }
+        
+        select {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            background-color: white;
+            cursor: pointer;
+        }
+        
+        button {
+            padding: 8px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        
+        button:hover {
+            background-color: #45a049;
+        }
+        
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        
+        .debug-info {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #f9f9f9;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="h-layout">
+            <!-- 昵称#编号输入框 -->
+            <input type="text" 
+                   id="nickname" 
+                   placeholder="请输入昵称#编号"
+                   value="君勿离丶#80302">
+            
+            <!-- 大区下拉框 -->
+            <select id="area">
+                <option>黑色玫瑰</option>
+                <option>艾欧尼亚</option>
+                <option>峡谷之巅</option>
+                <option>男爵领域</option>
+                <option>祖安</option>
+                <option>诺克萨斯</option>
+                <option>比尔吉沃特</option>
+                <option>德玛西亚</option>
+                <option>弗雷尔卓德</option>
+                <option>班德尔城</option>
+                <option>皮尔特沃夫</option>
+                <option>战争学院</option>
+                <option>巨神峰</option>
+                <option>雷瑟守备</option>
+                <option>无畏先锋</option>
+                <option>裁决之地</option>
+                <option>暗影岛</option>
+                <option>恕瑞玛</option>
+                <option>钢铁烈阳</option>
+                <option>水晶之痕</option>
+                <option>均衡教派</option>
+                <option>扭曲丛林</option>
+                <option>教育网专区</option>
+                <option>影流</option>
+                <option>守望之海</option>
+                <option>征服之海</option>
+                <option>卡拉曼达</option>
+                <option>皮城警备</option>
+                <option>巨龙之巢</option>
+            </select>
+            
+            <!-- 查询按钮 -->
+            <button id="queryBtn" onclick="startTask()">查询</button>
+            
+            <!-- Elo显示框 -->
+            <input type="text" 
+                   id="elo" 
+                   readonly 
+                   placeholder="Elo">
+        </div>
+        
+        <!-- 调试信息区域 -->
+        <div id="debugInfo" class="debug-info"></div>
+    </div>
+
+    <script>
+        // GameDetails 类的 JavaScript 实现
+        class GameDetails {
+            constructor() {
+                this.lzyumiSign = '';
+                this.signStr = '';
+                this.openid = '';
+                this.areaId = '';
+            }
+            
+            // MD5 哈希函数
+            async md5(str) {
+				return SparkMD5.hash(str);      // 同步返回 32 位小写 MD5
+			}
+            
+            // MD5 签名
+            async md5Sign(month, day, hour, minute, second) {
+                // 补齐前导零
+                month = month.padStart(2, '0');
+                day = day.padStart(2, '0');
+                hour = hour.padStart(2, '0');
+                minute = minute.padStart(2, '0');
+                second = second.padStart(2, '0');
+                
+                const signInfoStr = 'dld' + month + 'o' + day + 'u' + hour + 'd' + minute + 'o' + second + 'dld';
+                return await this.md5(signInfoStr);
+            }
+            
+            // 长度乘3
+            lenMul3(s) {
+                return (s.length * 3).toString();
+            }
+            
+            // 获取签名信息
+            async getSignInfo() {
+                const now = new Date();
+                const signMonth = now.getMonth() + 1; // JavaScript月份从0开始
+                const signDay = now.getDate();
+                const signHours = now.getHours();
+                const signMinutes = now.getMinutes();
+                const signSeconds = now.getSeconds();
+                
+                this.lzyumiSign = await this.md5Sign(
+                    signMonth.toString(),
+                    signDay.toString(),
+                    signHours.toString(),
+                    signMinutes.toString(),
+                    signSeconds.toString()
+                );
+                
+                this.signStr = signMonth.toString() + signDay.toString() + signHours.toString() +
+                              signMinutes.toString() + signSeconds.toString() +
+                              this.lenMul3(signMonth.toString()) +
+                              this.lenMul3(signDay.toString()) +
+                              this.lenMul3(signHours.toString()) +
+                              this.lenMul3(signMinutes.toString()) +
+                              this.lenMul3(signSeconds.toString());
+            }
+            
+            // 获取Rank Elo信息
+            async getRankEloInfo(nickname, areaname, onlyQueryElo) {
+                const result = {};
+                await this.getSignInfo();
+                
+                const parts = nickname.split('#');
+                if (parts.length !== 2) {
+                    throw new Error('昵称格式错误，应为：昵称#编号');
+                }
+                
+                // 第一个API调用
+                const url1 = `https://a.lzyumi.top/lzyumi/lol/info?nickname=${encodeURIComponent(parts[0])}*~*~*${parts[1]}+&allCount=10&areaName=${encodeURIComponent(areaname)}&seleMe=1&filter=5&openId=&lzyumiSign=${this.lzyumiSign}&signStr=${this.signStr}`;
+                
+                console.log('API 1:', url1);
+                const response1 = await fetch(url1);
+                const openAreaData = await response1.json();
+                console.log('Response 1:', openAreaData);
+                
+                this.openid = openAreaData.battleInfo.openId;
+                this.areaId = openAreaData.battleInfo.areaId.toString();
+                
+                // 第二个API调用
+                const url2 = `https://a.lzyumi.top/lzyumi/lol/info/getRankEloInfo?openId=${this.openid}=&areaId=${this.areaId}&lzyumiSign=${this.lzyumiSign}&signStr=${this.signStr}&filter=5`;
+                
+                console.log('API 2:', url2);
+                const response2 = await fetch(url2);
+                const eloData = await response2.json();
+                console.log('Response 2:', eloData);
+                
+                result.dataRankEloNum = eloData.data.dataRankEloNum;
+                return result;
+            }
+        }
+        
+        // 开始任务
+        async function startTask() {
+            const nicknameInput = document.getElementById('nickname');
+            const areaSelect = document.getElementById('area');
+            const eloInput = document.getElementById('elo');
+            const queryBtn = document.getElementById('queryBtn');
+            const debugInfo = document.getElementById('debugInfo');
+            
+            // 显示调试信息
+            debugInfo.style.display = 'block';
+            debugInfo.textContent = '正在查询...\n';
+            
+            // 禁用按钮
+            queryBtn.disabled = true;
+            queryBtn.textContent = '查询中...';
+            
+            try {
+                const gd = new GameDetails();
+                console.log('123123');
+                debugInfo.textContent += '开始查询...\n';
+                
+                const result = await gd.getRankEloInfo(
+                    nicknameInput.value,
+                    areaSelect.value,
+                    0
+                );
+                
+                eloInput.value = result.dataRankEloNum || '';
+                debugInfo.textContent += `查询成功！Elo: ${result.dataRankEloNum}\n`;
+                
+            } catch (error) {
+                console.error('查询失败:', error);
+                debugInfo.textContent += `查询失败: ${error.message}\n`;
+                alert('查询失败: ' + error.message);
+            } finally {
+                // 恢复按钮
+                queryBtn.disabled = false;
+                queryBtn.textContent = '查询';
+            }
+        }
+        
+        // 页面加载完成后的初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('页面加载完成');
+        });
+    </script>
+<script>window.parent.postMessage({ action: "ready" }, "*"); 
+ 
+window.console = new Proxy(console, {
+  get(target, prop) {
+    if (['log', 'warn', 'error'].includes(prop)) {
+      return new Proxy(target[prop], {
+        apply(fn, thisArg, args) {
+          fn.apply(thisArg, args);
+          window.parent.postMessage({ action: 'console', 
+            type: prop, 
+            args: args.map((arg) => {
+              try {
+                return JSON.stringify(arg).replace(/^["']|["']$/g, '');
+              } catch (e) {
+                return arg;
+              }
+            }) 
+          }, '*');
+        }
+      });
+    }
+    return target[prop];
+  }
+});
+</script></body>
+</html>
