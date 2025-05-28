@@ -11,7 +11,7 @@ body{margin:0;padding:20px;font-family:Arial,Helvetica,sans-serif;background:var
 .container{max-width:960px;margin:auto;background:#fff;padding:24px;border-radius:8px;box-shadow:0 2px 4px rgb(0 0 0 / .1);}
 .row{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-bottom:20px;}
 input[type=text],select{padding:8px 12px;border:1px solid #ddd;border-radius:4px;font-size:14px;}
-#nickname{width:200px;}#elo{width:120px;background:#f0f0f0;cursor:not-allowed;}
+#nickname{width:230px;}#elo{width:120px;background:#f0f0f0;cursor:not-allowed;}
 button{padding:8px 20px;border:0;border-radius:4px;font-size:14px;color:#fff;background:var(--primary);cursor:pointer;transition:.25s;}
 button:hover{background:var(--primary-hover);}button:disabled{background:var(--disabled);cursor:not-allowed;}
 #debug{display:none;margin-top:20px;padding:10px;background:#f9f9f9;border:1px solid #ddd;border-radius:4px;font:12px/1.6 monospace;white-space:pre-wrap;max-height:320px;overflow-y:auto;}
@@ -20,25 +20,16 @@ button:hover{background:var(--primary-hover);}button:disabled{background:var(--d
 <body>
 <div class="container">
   <div class="row">
-    <input id="nickname" type="text" placeholder="请输入昵称#编号" value="谁都能秒的小小ad#40245">
-    <select id="area">
-      <option>黑色玫瑰</option><option>艾欧尼亚</option><option>峡谷之巅</option><option>男爵领域</option>
-      <option>祖安</option><option>诺克萨斯</option><option>比尔吉沃特</option><option>德玛西亚</option>
-      <option>弗雷尔卓德</option><option>班德尔城</option><option>皮尔特沃夫</option><option>战争学院</option>
-      <option>巨神峰</option><option>雷瑟守备</option><option>无畏先锋</option><option>裁决之地</option>
-      <option>暗影岛</option><option>恕瑞玛</option><option>钢铁烈阳</option><option>水晶之痕</option>
-      <option>均衡教派</option><option>扭曲丛林</option><option>教育网专区</option><option>影流</option>
-      <option>守望之海</option><option>征服之海</option><option>卡拉曼达</option><option>皮城警备</option>
-      <option>巨龙之巢</option>
-    </select>
+    <input id="nickname" type="text" placeholder="昵称#编号" value="只玩大乱斗#63377">
+    <select id="area"></select>
     <button id="query">查询</button>
     <input id="elo" type="text" placeholder="Elo" readonly>
   </div>
+
   <div id="debug"></div>
-  <table id="myTable" border="1" style="margin-top:10px;border-collapse:collapse;">
-    <thead>
-      <tr><th>昵称</th><th>胜率</th><th>分数</th></tr>
-    </thead>
+
+  <table border="1" style="margin-top:10px;border-collapse:collapse;">
+    <thead><tr><th>昵称</th><th>胜率</th><th>Elo</th></tr></thead>
     <tbody id="eloBody"></tbody>
   </table>
 </div>
@@ -49,147 +40,205 @@ import SparkMD5 from "https://cdn.jsdelivr.net/npm/spark-md5@3.0.2/+esm";
 
 const $ = s => document.querySelector(s);
 const md5 = s => SparkMD5.hash(s);
-const pad = n => n.toString().padStart(2,"0");
 
-/* ---------- 通用 fetch 封装 ---------- */
-async function fetchJson(url,timeout=8000){
-  const ctl = new AbortController();
-  const t = setTimeout(()=>ctl.abort(),timeout);
-  const res = await fetch(url,{signal:ctl.signal});
-  clearTimeout(t);
-  if(!res.ok) throw new Error("网络错误 "+res.status);
-  return res.json();
+// 假设这是你拿到的区域列表
+const areas = [{areaName:"黑色玫瑰",areaId:14},
+{areaName:"艾欧尼亚",areaId:1},
+{areaName:"峡谷之巅",areaId:31},
+{areaName:"男爵领域",areaId:30},
+{areaName:"祖安",areaId:3},
+{areaName:"诺克萨斯",areaId:4},
+{areaName:"比尔吉沃特",areaId:2},
+{areaName:"德玛西亚",areaId:6},
+{areaName:"弗雷尔卓德",areaId:9},
+{areaName:"班德尔城",areaId:5},
+{areaName:"皮尔特沃夫",areaId:7},
+{areaName:"战争学院",areaId:8},
+{areaName:"巨神峰",areaId:10},
+{areaName:"雷瑟守备",areaId:11},
+{areaName:"无畏先锋",areaId:12},
+{areaName:"裁决之地",areaId:13},
+{areaName:"暗影岛",areaId:15},
+{areaName:"恕瑞玛",areaId:16},
+{areaName:"钢铁烈阳",areaId:17},
+{areaName:"水晶之痕",areaId:18},
+{areaName:"均衡教派",areaId:19},
+{areaName:"扭曲丛林",areaId:20},
+{areaName:"教育网专区",areaId:21},
+{areaName:"影流",areaId:22},
+{areaName:"守望之海",areaId:23},
+{areaName:"征服之海",areaId:24},
+{areaName:"卡拉曼达",areaId:25},
+{areaName:"皮城警备",areaId:27},
+{areaName:"巨龙之巢",areaId:26}];
+const sel = document.getElementById("area");
+// 动态填充
+areas.forEach(item => {
+  // new Option(text, value)
+  const opt = new Option(item.areaName, item.areaId);
+  sel.add(opt);
+});
+// （可选）设置默认选中
+sel.value = areas[0].areaId; // 选中第二项：艾欧尼亚
+
+
+
+/* ---------- fetch 封装：带 3 次重试 ---------- */
+async function fetchJsonWithRetry(url, timeout = 8000, retries = 3) {
+  for (let i = 1; i <= retries; i++) {
+    try {
+	  
+	  console.log("第"+i+"次请求"+url)
+      const ctl = new AbortController();
+      const timer = setTimeout(() => ctl.abort(), timeout);
+      const res = await fetch(url, { signal: ctl.signal });
+      clearTimeout(timer);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return await res.json();
+    } catch (err) {
+      if (i === retries) throw err;               // 最后一次仍失败就抛出
+      await new Promise(r => setTimeout(r, 500 * i)); // 简单指数退避
+    }
+  }
 }
 
 /* ---------- API 客户端 ---------- */
 class Lzyumi {
-  sign="";signStr="";openId="";areaId="";
-  md5Sign(signMonth,signDay,signHours,signMinutes,signSeconds){
-		 if(signMonth < 10) signMonth = '0'+signMonth;
-		 if(signDay < 10) signDay = '0'+signDay;
-		 if(signHours < 10) signHours = '0'+signHours;
-		 if(signMinutes < 10) signMinutes = '0'+signMinutes;
-		 if(signSeconds < 10) signSeconds = '0'+signSeconds;
-		 var singInfoStr = 'dld' +signMonth + 'o' +  signDay + 'u' +  signHours + 'd' +  signMinutes + 'o' +  signSeconds + 'dld'
-		return md5(singInfoStr)
-	}
-  
-  genSign(){
-	var currentDate = new Date();
-	var signMonth = currentDate.getMonth() + 1 +'';
-	var signDay = currentDate.getDate()+'';
-	var signHours = currentDate.getHours()+'';
-	var signMinutes = currentDate.getMinutes()+'';
-	var signSeconds = currentDate.getSeconds()+'';
-	this.sign = this.md5Sign(signMonth,signDay,signHours,signMinutes,signSeconds)
-	this.signStr = signMonth+signDay+signHours+signMinutes+signSeconds + signMonth.length* 3 +''  + signDay.length* 3+''+signHours.length* 3+''+signMinutes.length* 3+''+signSeconds.length* 3
-	
-  }
-  
+  sign="";signStr="";
+  openId="";areaId="";
 
-  
-  async getElo(nick,area,only_query_elo){
-    var result={}
+  md5Sign(M,D,h,m,s){
+    const pad = x=>x.toString().padStart(2,"0");
+    return md5(`dld${pad(M)}o${pad(D)}u${pad(h)}d${pad(m)}o${pad(s)}dld`);
+  }
+
+  genSign(){
+    const d=new Date();
+    const [M,D,h,m,s]=[d.getMonth()+1,d.getDate(),d.getHours(),d.getMinutes(),d.getSeconds()];
+    this.sign=this.md5Sign(M,D,h,m,s);
+    this.signStr=""+M+D+h+m+s +(""+M).length*3 +(""+D).length*3 +(""+h).length*3 +(""+m).length*3 +(""+s).length*3;
+  }
+
+  /* 查询 Elo，可选 onlyElo=1 只查 Elo；0 还查对局详情 */
+  async getElo(nick, area, onlyElo = 1) {
     this.genSign();
-    const [name,tag]=nick.split("#");
-    if(!tag){
-		return result
-	};
-	
-    const common=`lzyumiSign=${this.sign}&signStr=${this.signStr}&filter=5`;
-    const url1=`https://a.lzyumi.top/lzyumi/lol/info?nickname=${encodeURIComponent(name)}*~*~*${tag}+&allCount=10&areaName=${encodeURIComponent(area)}&seleMe=1&openId=&${common}`;
-    const d1=await fetchJson(url1);
-    if(!d1.battleInfo) throw new Error(d1.msg||"未找到玩家信息");
-	
-	var is_running = d1.curryMap===null?false:true;
-	result.is_running=is_running;
+    const [name, tag] = nick.split("#");
+    if (!tag) return {};                       // 没有 # 直接返回空对象
+
+    const common = `lzyumiSign=${this.sign}&signStr=${this.signStr}&filter=5`;
+
+    /* ---------- 玩家基本信息 ---------- */
+    const url1 = `https://a.lzyumi.top/lzyumi/lol/info?nickname=${encodeURIComponent(name)}*~*~*${tag}+&allCount=10&areaName=${encodeURIComponent(area)}&seleMe=1&openId=&${common}`;
+    const d1   = await fetchJsonWithRetry(url1);
+
+    if (!d1.battleInfo) throw new Error(d1.msg || "未找到玩家信息");
+
     this.openId = d1.battleInfo.openId;
-	this.new_openId = encodeURI(this.openId).replace(/\+/g,'%2B')
-    this.areaId=d1.battleInfo.areaId;
-	
-    const url2=`https://a.lzyumi.top/lzyumi/lol/info/getRankEloInfo?openId=${this.new_openId}=&areaId=${this.areaId}&${common}`;
-	console.log(url2)
-    const d2=await fetchJson(url2);
-	console.log(d2)
-	
-	if(only_query_elo==0)
-		var curryMap = d1.curryMap;
-        if (curryMap!=null){
-            this.gameId = curryMap.gameId
-			this.gameId = encodeURI(this.gameId).replace(/\+/g,'%2B')
-            const url3=`https://a.lzyumi.top/lzyumi/lol/info/findOrderDetailInfoAll?openId=${this.new_openId}&gameId=${this.gameId}&areaId=${this.areaId}&${common}&lzyumitokenstr=null`
-	        const d3=await fetchJson(url3);
-			result.wgBattleDetailInfo=d3.data.wgBattleDetailInfo
-			
-		}
-	if(d2.data===null)
-	{
-		getElo(nick,area,only_query_elo)
-	}
-	result.dataRankEloNum=d2.data.dataRankEloNum
+    this.areaId = d1.battleInfo.areaId;
+    const openEncoded = encodeURIComponent(this.openId).replace(/\+/g,"%2B");
+
+
+    const url2 = `https://a.lzyumi.top/lzyumi/lol/info/getRankEloInfo?openId=${openEncoded}=&areaId=${this.areaId}&${common}`;
+    const d2 = await fetchJsonWithRetry(url2);
+
+    const result = {
+      dataRankEloNum : d2.data.dataRankEloNum,
+      is_running     : !!d1.curryMap,
+      wgBattleDetailInfo : []
+    };
+
+    /* ---------- 对局详情（仅在需要时） ---------- */
+    if (!onlyElo && d1.curryMap) {
+      const gameIdEncode = encodeURIComponent(d1.curryMap.gameId).replace(/\+/g,"%2B");
+      const url3 = `https://a.lzyumi.top/lzyumi/lol/info/findOrderDetailInfoAll?openId=${openEncoded}&gameId=${gameIdEncode}&areaId=${this.areaId}&${common}&lzyumitokenstr=null`;
+      const d3   = await fetchJsonWithRetry(url3);
+      result.wgBattleDetailInfo = d3.data?.wgBattleDetailInfo ?? [];
+    }
+
     return result;
   }
 }
 
-/* ---------- DOM 交互 ---------- */
-const dom={nick:$("#nickname"),area:$("#area"),btn:$("#query"),elo:$("#elo"),dbg:$("#debug"),tbody:$("#eloBody")};
+/* ---------- DOM ---------- */
+const dom={
+  nick:$("#nickname"), area:$("#area"), btn:$("#query"),
+  elo:$("#elo"), dbg:$("#debug"), tbody:$("#eloBody")
+};
+const api = new Lzyumi();
 
-const api=new Lzyumi();
-
-/* 往表格末尾追加一行 */
-function appendRow(nickname, game_totle_info,elo){
+/* 追加行 */
+function appendRow(name, rate, elo){
   const tr=document.createElement("tr");
-  tr.innerHTML=`<td>${nickname}</td><td>${game_totle_info}</td><td>${elo}</td>`;
+  tr.innerHTML = `<td>${name}</td><td>${rate}</td><td>${elo}</td>`;
   dom.tbody.appendChild(tr);
 }
 
-dom.btn.onclick = async ()=>{
-  dom.tbody.innerHTML = '';
-  dom.btn.disabled=true; 
-  dom.btn.textContent="查询中…";
-  dom.dbg.style.display="block"; 
-  dom.dbg.textContent="正在查询…\n";
-  try{
-    var result = await api.getElo(dom.nick.value.trim(),dom.area.value,0);
-	if (JSON.stringify(result) === '{}'){
-		dom.dbg.textContent='昵称格式应为 昵称#编号'
-	}
-	console.log(result)
+/* 点击事件 */
+dom.btn.onclick = async () => {
+  dom.tbody.innerHTML = "";                 // 清空旧数据
+  dom.btn.disabled = true;
+  dom.btn.textContent = "查询中…";
+  dom.dbg.style.display = "block";
+  dom.dbg.textContent = "正在查询…\n";
+
+  try {
+    const result = await api.getElo(dom.nick.value.trim(), dom.area.value, 0);
+
+    if (!result.dataRankEloNum){
+      dom.dbg.textContent = "昵称格式错误或 Elo 获取失败";
+      return;
+    }
+
     dom.elo.value = result.dataRankEloNum;
-	console.log(result.is_running)
-	if(!result.is_running)
-	{
-		return
-	}
-	
-	var wgBattleDetailInfo = result.wgBattleDetailInfo;
     dom.dbg.textContent += `查询成功！Elo: ${dom.elo.value}\n`;
-	dom.dbg.textContent += `游戏进行中`+`\n`
-	/* ---------- 对战信息 ---------- */
-    const nameOnly = dom.nick.value.split("#")[0];
-	for(var i =0;i<wgBattleDetailInfo.length;i++){
-		var nickName = wgBattleDetailInfo[i]?.nickName || '暂无';	
-		var gameTotleInfo = wgBattleDetailInfo[i]?.gameTotleInfo || '暂无';
+
+    /* 没在游戏就结束 */
+    if (!result.is_running){
+      dom.dbg.textContent += "当前不在对局。\n";
+      return;
+    }
+    dom.dbg.textContent += "游戏进行中，查询队员 Elo …\n";
+
+    /* ---------- 并行请求队友 ---------- */
+    const promises=result.wgBattleDetailInfo.map(p=>(
+      async()=>{
+	    
+	    // 先等 1000 毫秒
+        await new Promise(r => setTimeout(r, 1000));
 		
-		const lzyumi=new Lzyumi();
-		const eloObj= await lzyumi.getElo(nickName,dom.area.value,1);
-		var userElo="暂无"
-		if (JSON.stringify(eloObj) !== '{}'){
-			userElo=eloObj.dataRankEloNum.replace("大乱斗：","");
-	    }
-		appendRow(nickName, gameTotleInfo,userElo);
-	}
-    
-	
-  }catch(e){
-    dom.dbg.textContent += `失败：${e.message}\n`;
-    alert(e.message);
-  }finally{
-    dom.btn.disabled=false; dom.btn.textContent="查询";
+        const nickName=p?.nickName??"暂无";
+        const winRate =p?.gameTotleInfo??"暂无";
+		const translateAreaId=p.translateAreaId;
+        try{
+          const tmpApi=new Lzyumi();
+		  const areaName = areas.find(item => item.areaId === translateAreaId).areaName; 
+		  
+          const eloObj=await tmpApi.getElo(nickName,areaName,1);
+          const eloNum=eloObj.dataRankEloNum?.replace("大乱斗：","")??"暂无";
+          return { nickName, winRate, eloNum };
+        }catch(err){
+		  alert(err.message);
+          return { nickName, winRate, eloNum:"查询失败" };
+        }
+      })()
+    );
+
+    const settled=await Promise.allSettled(promises);
+    settled
+      .filter(s=>s.status==="fulfilled")
+      .forEach(s=>{
+        const { nickName, winRate, eloNum } = s.value;
+        appendRow(nickName, winRate, eloNum);
+      });
+  
+  } catch (err) {
+    dom.dbg.textContent += `失败：${err.message}\n`;
+    alert(err.message);
+  } finally {
+    dom.btn.disabled = false;
+    dom.btn.textContent = "查询";
   }
 };
-
-console.log("页面加载完成");
 </script>
 </body>
 </html>
