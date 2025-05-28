@@ -29,7 +29,7 @@ button:hover{background:var(--primary-hover);}button:disabled{background:var(--d
   <div id="debug"></div>
 
   <table border="1" style="margin-top:10px;border-collapse:collapse;">
-    <thead><tr><th>昵称</th><th>胜率</th><th>Elo</th></tr></thead>
+    <thead><tr><th>昵称</th><th>胜率</th><th>Elo</th><th>大区</th></tr></thead>
     <tbody id="eloBody"></tbody>
   </table>
 </div>
@@ -79,7 +79,7 @@ areas.forEach(item => {
   sel.add(opt);
 });
 // （可选）设置默认选中
-sel.value = areas[0].areaId; // 选中第二项：艾欧尼亚
+sel.value = areas[0].areaId; // 选中第一项：黑色玫瑰
 
 
 
@@ -167,9 +167,9 @@ const dom={
 const api = new Lzyumi();
 
 /* 追加行 */
-function appendRow(name, rate, elo){
+function appendRow(name, rate, elo,areaname){
   const tr=document.createElement("tr");
-  tr.innerHTML = `<td>${name}</td><td>${rate}</td><td>${elo}</td>`;
+  tr.innerHTML = `<td>${name}</td><td>${rate}</td><td>${elo}</td><td>${areaname}</td>`;
   dom.tbody.appendChild(tr);
 }
 
@@ -202,9 +202,6 @@ dom.btn.onclick = async () => {
     /* ---------- 并行请求队友 ---------- */
     const promises=result.wgBattleDetailInfo.map(p=>(
       async()=>{
-	    
-	    // 先等 1000 毫秒
-        await new Promise(r => setTimeout(r, 1000));
 		
         const nickName=p?.nickName??"暂无";
         const winRate =p?.gameTotleInfo??"暂无";
@@ -215,11 +212,15 @@ dom.btn.onclick = async () => {
 		  
           const eloObj=await tmpApi.getElo(nickName,areaName,1);
           const eloNum=eloObj.dataRankEloNum?.replace("大乱斗：","")??"暂无";
-          return { nickName, winRate, eloNum };
+          return { nickName, winRate, eloNum ,areaName};
         }catch(err){
-		  alert(err.message);
-          return { nickName, winRate, eloNum:"查询失败" };
+		  /* --------alert(err.message);*/
+          return { nickName, winRate, eloNum:"查询失败" ,areaName};
         }
+		finally {
+         // 先等 1000 毫秒
+        await new Promise(r => setTimeout(r, 2000));
+       }
       })()
     );
 
@@ -227,13 +228,13 @@ dom.btn.onclick = async () => {
     settled
       .filter(s=>s.status==="fulfilled")
       .forEach(s=>{
-        const { nickName, winRate, eloNum } = s.value;
-        appendRow(nickName, winRate, eloNum);
+        const { nickName, winRate, eloNum,areaName } = s.value;
+        appendRow(nickName, winRate, eloNum,areaName);
       });
   
   } catch (err) {
     dom.dbg.textContent += `失败：${err.message}\n`;
-    alert(err.message);
+    /* --------alert(err.message);*/
   } finally {
     dom.btn.disabled = false;
     dom.btn.textContent = "查询";
