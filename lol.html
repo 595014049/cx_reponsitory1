@@ -123,12 +123,14 @@ class Lzyumi {
     const result = {
       dataRankEloNum: d2.data.dataRankEloNum,
       is_running: !!d1.curryMap,
-      wgBattleDetailInfo: []
+      wgBattleDetailInfo: [],
     };
     if (!onlyElo && d1.curryMap) {
       const gid = encodeURIComponent(d1.curryMap.gameId).replace(/\+/g,"%2B");
       const url3 = `https://a.lzyumi.top/lzyumi/lol/info/findOrderDetailInfoAll?openId=${openEnc}&gameId=${gid}&areaId=${this.areaId}&${common}&lzyumitokenstr=null`;
       const d3 = await fetchJsonWithRetry(url3);
+	  result.teamEloOne=d3.data?.teamEloOne||"";
+	  result.teamEloTwo=d3.data?.teamEloTwo||"";
       result.wgBattleDetailInfo = d3.data?.wgBattleDetailInfo || [];
     }
     return result;
@@ -145,15 +147,17 @@ const api = new Lzyumi();
 // 普通行
 function appendRow(name, rate, elo, areaName,skinUrl) {
   const tr = document.createElement("tr");
+  const newSkinUrl = skinUrl.slice(0, -7) + "000" + skinUrl.slice(-4);
+  
   tr.innerHTML = `<td>${name}</td><td>${rate}</td><td>${elo}</td><td>${areaName}</td>
-  <td><img class="skin" src="${skinUrl}" alt="皮肤图"></td>`;
+  <td><img class="skin" src="${newSkinUrl}" alt="皮肤图"></td>`;
   dom.tbody.appendChild(tr);
 }
 // 特殊 S 行
-function appendSpecialS() {
+function appendSpecialS(text ="VS") {
   const tr = document.createElement("tr");
   tr.className = "special-row";
-  tr.innerHTML = `<td colspan="4">VS</td>`;
+  tr.innerHTML = `<td colspan="4">${text}</td>`;
   dom.tbody.appendChild(tr);
 }
 
@@ -205,7 +209,7 @@ dom.btn.onclick = async () => {
     const rows = settled.filter(s => s.status==="fulfilled").map(s => s.value);
     rows.forEach((r, idx) => {
       if (idx === 5) {
-        appendSpecialS();  // 第五条插 S
+        appendSpecialS(result.teamEloOne+" VS "+result.teamEloTwo);  // 第五条插 S
       }
 	  
       appendRow(r.nickName, r.winRate, r.eloNum, r.areaName,r.skinUrl);
