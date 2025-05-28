@@ -14,22 +14,13 @@ input[type=text],select{padding:8px 12px;border:1px solid #ddd;border-radius:4px
 #nickname{width:230px;}#elo{width:120px;background:#f0f0f0;cursor:not-allowed;}
 button{padding:8px 20px;border:0;border-radius:4px;font-size:14px;color:#fff;background:var(--primary);cursor:pointer;transition:.25s;}
 button:hover{background:var(--primary-hover);}button:disabled{background:var(--disabled);cursor:not-allowed;}
+#history_info{margin-bottom:20px;}
 #debug{display:none;margin-top:20px;padding:10px;background:#f9f9f9;border:1px solid #ddd;border-radius:4px;font:12px/1.6 monospace;white-space:pre-wrap;max-height:320px;overflow-y:auto;}
-/* 特殊行的样式 */
-.special-row td {
-  text-align: center;
-  font-size: 32px;
-  color: #e91e63;
-  padding: 16px;
-}
-td img.skin {
-  display: block;
-  max-width: 100px;    /* 根据你表格列宽调整 */
-  max-height: 80px;    /* 或者你想要的高度 */
-  width: auto;
-  height: auto;
-  object-fit: cover;   /* 保持裁剪或充满效果可选 */
-}
+.special-row td {text-align:center;font-size:32px;color:#e91e63;padding:16px;}
+td img.skin {display:block;max-width:100px;max-height:80px;width:auto;height:auto;object-fit:cover;}
+.hpv{display:inline-flex;align-items:center;cursor:default;line-height:0.66rem;margin:0.05rem;font-weight:400;border-radius:0.2rem;letter-spacing:0.02rem;background:#f3f3f3;padding:0.08rem 0.15rem;}
+.hpv span.name{cursor:pointer;}
+.hpv i{margin-left:0.3rem;color:#a8a8a8;cursor:pointer;}
 </style>
 </head>
 <body>
@@ -40,11 +31,12 @@ td img.skin {
     <button id="query">查询</button>
     <input id="elo" type="text" placeholder="Elo" readonly>
   </div>
-
+  <div id="history_info"></div>
   <div id="debug"></div>
-
-  <table id="myTable"  border="1" style="margin-top:10px;border-collapse:collapse;">
-    <thead style="display:none"><tr><th>昵称</th><th>胜率</th><th>Elo</th><th>大区</th><th>英雄</th></tr></thead>
+  <table id="myTable" border="1" style="margin-top:10px;border-collapse:collapse;">
+    <thead style="display:none">
+      <tr><th>昵称</th><th>胜率</th><th>Elo</th><th>大区</th><th>英雄</th></tr>
+    </thead>
     <tbody id="eloBody"></tbody>
   </table>
 </div>
@@ -77,7 +69,51 @@ const sel = $("#area");
 areas.forEach(item => sel.add(new Option(item.areaName, item.areaId)));
 sel.value = areas[0].areaId;
 
-// fetch 重试封装
+// 本脚本需要的 DOM 引用
+const dom = {
+  nick: $("#nickname"),
+  area: $("#area"),
+  btn: $("#query"),
+  elo: $("#elo"),
+  dbg: $("#debug"),
+  tbody: $("#eloBody")
+};
+
+// 历史记录相关
+const HISTORY_KEY = 'history_items';
+const historyContainer = $("#history_info");
+
+// 渲染历史
+function loadHistory() {
+  const list = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
+  historyContainer.innerHTML = '';
+  list.forEach((item, idx) => {
+    const box = document.createElement('span');
+    box.className = 'hpv';
+    const name = document.createElement('span');
+    name.className = 'name';
+    name.textContent = `${item.nick}［${item.areaName}］`;
+    name.onclick = () => {
+      dom.nick.value = item.nick;
+      dom.area.value = item.areaId;
+      dom.btn.click();
+    };
+    const del = document.createElement('i');
+    del.textContent = '×';
+    del.onclick = () => {
+      list.splice(idx, 1);
+      localStorage.setItem(HISTORY_KEY, JSON.stringify(list));
+      loadHistory();
+    };
+    box.append(name, del);
+    historyContainer.appendChild(box);
+  });
+}
+
+// 初始化历史
+window.addEventListener('DOMContentLoaded', loadHistory);
+
+// 辅助：fetch 重试
 async function fetchJsonWithRetry(url, timeout = 8000, retries = 3) {
   for (let i = 1; i <= retries; i++) {
     try {
@@ -94,8 +130,8 @@ async function fetchJsonWithRetry(url, timeout = 8000, retries = 3) {
   }
 }
 
-// API 客户端
-class Lzyumi {
+// API 客户端（不变）
+class Lzyumi {  
   sign="";signStr="";openId="";areaId="";
   md5Sign(M,D,h,m,s){
     const pad = x=>x.toString().padStart(2,"0");
@@ -134,26 +170,16 @@ class Lzyumi {
       result.wgBattleDetailInfo = d3.data?.wgBattleDetailInfo || [];
     }
     return result;
-  }
-}
+  }}
 
-const dom = {
-  nick: $("#nickname"), area: $("#area"),
-  btn: $("#query"), elo: $("#elo"),
-  dbg: $("#debug"), tbody: $("#eloBody")
-};
-const api = new Lzyumi();
-
-// 普通行
-function appendRow(name, rate, elo, areaName,skinUrl) {
+// 表格行辅助
+function appendRow(name, rate, elo, areaName, skinUrl) {
   const tr = document.createElement("tr");
-  const newSkinUrl = skinUrl.slice(0, -7) + "000" + skinUrl.slice(-4);
-  
+  const newSkin = skinUrl.slice(0, -7) + "000" + skinUrl.slice(-4);
   tr.innerHTML = `<td>${name}</td><td>${rate}</td><td>${elo}</td><td>${areaName}</td>
-  <td><img class="skin" src="${newSkinUrl}" alt="皮肤图"></td>`;
+    <td><img class="skin" src="${newSkin}" alt=""></td>`;
   dom.tbody.appendChild(tr);
 }
-// 特殊 S 行
 function appendSpecialS(text ="VS") {
   const tr = document.createElement("tr");
   tr.className = "special-row";
@@ -161,9 +187,23 @@ function appendSpecialS(text ="VS") {
   dom.tbody.appendChild(tr);
 }
 
+const api = new Lzyumi();
+
+// 查询按钮逻辑
 dom.btn.onclick = async () => {
-  const thead = document.querySelector("#myTable thead");
-  thead.style.display = "table-header-group";
+  // 1. 保存历史
+  const list = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
+  const nick = dom.nick.value.trim();
+  const areaId = dom.area.value;
+  const areaName = sel.options[sel.selectedIndex].text;
+  if (nick && !list.some(x=>x.nick===nick&&x.areaId===areaId)) {
+    list.push({nick, areaId, areaName});
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(list));
+    loadHistory();
+  }
+
+  // 2. 清表头、表内容、状态
+  document.querySelector("#myTable thead").style.display = "table-header-group";
   dom.tbody.innerHTML = "";
   dom.btn.disabled = true;
   dom.btn.textContent = "查询中…";
@@ -171,7 +211,7 @@ dom.btn.onclick = async () => {
   dom.dbg.textContent = "正在查询…\n";
 
   try {
-    const result = await api.getElo(dom.nick.value.trim(), dom.area.value, 0);
+    const result = await api.getElo(nick, areaName, 0);
     if (!result.dataRankEloNum) {
       dom.dbg.textContent = "昵称格式错误或 Elo 获取失败";
       return;
@@ -183,36 +223,29 @@ dom.btn.onclick = async () => {
       return;
     }
     dom.dbg.textContent += "游戏进行中，查询队员 Elo …\n";
-    
-	
-	
-    // 并行请求
-    const promises = result.wgBattleDetailInfo.map((p, i) => (async () => {
-      // 加 1 秒延迟
-      await new Promise(r => setTimeout(r, 1000));
-      const nickName = p.nickName || "暂无";
-      const winRate  = p.gameTotleInfo || "暂无";
+
+    // 并行请求队友
+    const promises = result.wgBattleDetailInfo.map((p,i)=> (async()=>{
+      await new Promise(r=>setTimeout(r,1000));
+      const nickName = p.nickName||"暂无";
+      const winRate  = p.gameTotleInfo||"暂无";
       const aid      = p.translateAreaId;
-	  const skinUrl      = p.skinUrlInfo;
-      const areaName = (areas.find(a => a.areaId === aid) || {}).areaName || "未知大区";
+      const skinUrl  = p.skinUrlInfo;
+      const areaN    = (areas.find(a=>a.areaId===aid)||{}).areaName||"未知";
       try {
         const tmp = new Lzyumi();
-        const eobj = await tmp.getElo(nickName, areaName, 1);
-        const eno  = eobj.dataRankEloNum?.replace("大乱斗：","") || "暂无";
-        return {nickName,winRate,eloNum:eno,areaName,skinUrl};
+        const eobj = await tmp.getElo(nickName, areaN,1);
+        const eno = eobj.dataRankEloNum?.replace("大乱斗：","")||"暂无";
+        return {nickName,winRate,eloNum:eno,areaName:areaN,skinUrl};
       } catch {
-        return {nickName,winRate,eloNum:"查询失败",areaName,skinUrl};
+        return {nickName,winRate,eloNum:"查询失败",areaName:areaN,skinUrl};
       }
     })());
-	
     const settled = await Promise.allSettled(promises);
-    const rows = settled.filter(s => s.status==="fulfilled").map(s => s.value);
-    rows.forEach((r, idx) => {
-      if (idx === 5) {
-        appendSpecialS(result.teamEloOne+" VS "+result.teamEloTwo);  // 第五条插 S
-      }
-	  
-      appendRow(r.nickName, r.winRate, r.eloNum, r.areaName,r.skinUrl);
+    const rows = settled.filter(s=>s.status==="fulfilled").map(s=>s.value);
+    rows.forEach((r,idx)=>{
+      if(idx===5) appendSpecialS(result.teamEloOne+" VS "+result.teamEloTwo);
+      appendRow(r.nickName,r.winRate,r.eloNum,r.areaName,r.skinUrl);
     });
 
   } catch (err) {
